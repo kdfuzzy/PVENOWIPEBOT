@@ -8,7 +8,10 @@ module.exports = (client) => {
 
         for (const file of files) {
             const command = require(`../commands/${folder}/${file}`);
-            client.commands.set(command.name, command);
+
+            if (command.data && command.execute) {
+                client.commands.set(command.data.name, command);
+            }
         }
     }
 };
