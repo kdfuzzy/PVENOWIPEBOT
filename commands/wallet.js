@@ -7,8 +7,8 @@ module.exports = {
         .setDescription("View a user's wallet info")
         .addUserOption(option =>
             option.setName("user")
-                .setDescription("User to view wallet")
-                .setRequired(false)
+                  .setDescription("User to view wallet")
+                  .setRequired(false)
         ),
 
     async execute(interaction) {
@@ -16,10 +16,7 @@ module.exports = {
         const wallet = getWallet(user.id);
 
         if (!wallet) {
-            return interaction.reply({
-                content: `❌ ${user.username} has not added a wallet yet.`,
-                ephemeral: false
-            });
+            return interaction.reply({ content: `❌ ${user.username} has not linked a wallet.`, ephemeral: false });
         }
 
         const embed = new EmbedBuilder()
