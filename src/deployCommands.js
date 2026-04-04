@@ -12,11 +12,9 @@ for (const folder of folders) {
     for (const file of files) {
         const command = require(`./commands/${folder}/${file}`);
 
-        commands.push({
-            name: command.name,
-            description: command.description,
-            options: command.options || []
-        });
+        if (command.data) {
+            commands.push(command.data.toJSON());
+        }
     }
 }
 
@@ -24,7 +22,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
 (async () => {
     try {
-        console.log("Deploying commands...");
+        console.log("Deploying slash commands...");
 
         await rest.put(
             Routes.applicationGuildCommands(
