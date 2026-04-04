@@ -4,11 +4,12 @@ const { Client, Collection, GatewayIntentBits, REST, Routes } = require("discord
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.commands = new Collection();
 
-// ===== Load commands dynamically =====
+// ===== Load all moderation commands =====
 const commandFolders = fs.readdirSync("./src/commands");
 for (const folder of commandFolders) {
     const folderPath = `./src/commands/${folder}`;
     const commandFiles = fs.readdirSync(folderPath).filter(f => f.endsWith(".js"));
+
     for (const file of commandFiles) {
         const command = require(`${folderPath}/${file}`);
         if (command.data && command.execute) client.commands.set(command.data.name, command);
@@ -20,6 +21,7 @@ client.on("interactionCreate", async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
+
     try {
         await command.execute(interaction, client);
     } catch (err) {
@@ -46,5 +48,5 @@ client.once("ready", async () => {
     }
 });
 
-// ===== Login using Railway environment variables =====
+// ===== Login =====
 client.login(process.env.TOKEN);
