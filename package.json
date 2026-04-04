@@ -1,11 +1,10 @@
 {
-  "name": "discord-send-bot",
+  "name": "discord-ticket-bot",
   "version": "1.0.0",
-  "description": "Discord bot with /send command",
-  "main": "index.js",
+  "description": "Advanced Discord bot with tickets, moderation, and giveaways",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js",
-    "deploy": "node deploy-commands.js"
+    "start": "node src/index.js"
   },
   "dependencies": {
     "discord.js": "^14.14.1",
