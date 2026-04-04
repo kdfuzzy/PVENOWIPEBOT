@@ -1,59 +1,50 @@
-const { Client, Collection, GatewayIntentBits } = require("discord.js");
-require("dotenv").config();
 const fs = require("fs");
+const { Client, Collection, GatewayIntentBits, REST, Routes } = require("discord.js");
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
-// Command Collection
 client.commands = new Collection();
 
-// Load commands
-const folders = fs.readdirSync("./src/commands");
-for (const folder of folders) {
-    const files = fs.readdirSync(`./src/commands/${folder}`).filter(f => f.endsWith(".js"));
-    for (const file of files) {
-        const command = require(`./src/commands/${folder}/${file}`);
+// ===== Load commands dynamically =====
+const commandFolders = fs.readdirSync("./src/commands");
+for (const folder of commandFolders) {
+    const folderPath = `./src/commands/${folder}`;
+    const commandFiles = fs.readdirSync(folderPath).filter(f => f.endsWith(".js"));
+    for (const file of commandFiles) {
+        const command = require(`${folderPath}/${file}`);
         if (command.data && command.execute) client.commands.set(command.data.name, command);
     }
 }
 
-// Event handler
+// ===== Handle interactions =====
 client.on("interactionCreate", async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
-
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
-
     try {
         await command.execute(interaction, client);
     } catch (err) {
         console.error(err);
-        interaction.reply({ content: "❌ Error executing command", ephemeral: true });
+        await interaction.reply({ content: "❌ Error executing command", ephemeral: true });
     }
 });
 
-// Auto-sync slash commands on startup
-const { REST, Routes } = require("discord.js");
+// ===== Auto-sync slash commands on startup =====
 client.once("ready", async () => {
     console.log(`Logged in as ${client.user.tag}`);
 
     const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-
-    const commands = [];
-    for (const command of client.commands.values()) {
-        commands.push(command.data.toJSON());
-    }
+    const commands = Array.from(client.commands.values()).map(c => c.data.toJSON());
 
     try {
         await rest.put(
             Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
             { body: commands }
         );
-        console.log("✅ Slash commands synced automatically!");
+        console.log("✅ Slash commands synced successfully!");
     } catch (err) {
         console.error("❌ Failed to sync commands:", err);
     }
 });
 
-// Login
+// ===== Login using Railway environment variables =====
 client.login(process.env.TOKEN);
