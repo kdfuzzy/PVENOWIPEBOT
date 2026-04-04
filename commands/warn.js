@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require("discord.js");
 
-// simple in-memory warn storage
+// In-memory warn storage (shared with other commands)
 const warns = new Map();
 
 module.exports = {
@@ -18,6 +18,8 @@ module.exports = {
         )
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
+    warns, // ✅ export warns properly
+
     async execute(interaction) {
         await interaction.deferReply();
 
@@ -28,11 +30,12 @@ module.exports = {
             return interaction.editReply("❌ You can't warn yourself.");
         }
 
-        // add warn
+        // Create warn list if not exists
         if (!warns.has(user.id)) {
             warns.set(user.id, []);
         }
 
+        // Add warn
         warns.get(user.id).push({
             reason,
             moderator: interaction.user.tag,
@@ -61,6 +64,3 @@ module.exports = {
         }
     }
 };
-
-// export warns so other commands can use later (viewwarns etc)
-module.exports.warns = warns;
