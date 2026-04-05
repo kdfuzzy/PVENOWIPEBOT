@@ -1,37 +1,24 @@
-const { PublicKey } = require("@solana/web3.js");
+const wallets = new Map();      // userId -> { address, verified }
+const challenges = new Map();   // userId -> { challenge, address }
 
-const wallets = new Map(); 
-// userId -> { address, challenge, verified }
-
-function createChallenge(userId, address) {
-    const challenge = `Discord wallet link verification: ${userId}-${Date.now()}`;
-    wallets.set(userId, { address, challenge, verified: false });
-    return challenge;
+function addChallenge(userId, challenge, address) {
+    challenges.set(userId, { challenge, address });
 }
 
-function verifySignature(userId, signature) {
-    const data = wallets.get(userId);
-    if (!data) return false;
-
-    try {
-        const pubKey = new PublicKey(data.address);
-        const message = Buffer.from(data.challenge);
-        const signatureBuffer = Buffer.from(signature, "base64");
-
-        return pubKey.verify(message, signatureBuffer);
-    } catch (e) {
-        console.error(e);
-        return false;
-    }
+function getChallenge(userId) {
+    return challenges.get(userId);
 }
 
-function markVerified(userId) {
-    const data = wallets.get(userId);
-    if (data) data.verified = true;
+function verifyWallet(userId) {
+    const data = challenges.get(userId);
+    if (!data) return null;
+    wallets.set(userId, { address: data.address, verified: true });
+    challenges.delete(userId);
+    return wallets.get(userId);
 }
 
 function getWallet(userId) {
     return wallets.get(userId);
 }
 
-module.exports = { wallets, createChallenge, verifySignature, markVerified, getWallet };
+module.exports = { addChallenge, getChallenge, verifyWallet, getWallet };
