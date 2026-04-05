@@ -1,4 +1,10 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { 
+    SlashCommandBuilder, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle 
+} = require('discord.js');
+
 const { getBalance, removeBalance, addBalance } = require('../utils/economy');
 
 module.exports = {
@@ -23,6 +29,10 @@ module.exports = {
             return interaction.reply({ content: '❌ You cannot challenge yourself.', ephemeral: true });
         }
 
+        if (amount <= 0) {
+            return interaction.reply({ content: '❌ Invalid amount.', ephemeral: true });
+        }
+
         const userBal = getBalance(user.id);
         const oppBal = getBalance(opponent.id);
 
@@ -34,26 +44,22 @@ module.exports = {
             return interaction.reply({ content: '❌ Opponent doesn’t have enough money.', ephemeral: true });
         }
 
-        await interaction.reply(`🪙 ${opponent}, you’ve been challenged by ${user} for **${amount}**!\nType **accept** to play.`);
+        // 🎮 BUTTONS
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`accept_${user.id}_${opponent.id}_${amount}`)
+                .setLabel('Accept')
+                .setStyle(ButtonStyle.Success),
 
-        const filter = m => m.author.id === opponent.id && m.content.toLowerCase() === 'accept';
+            new ButtonBuilder()
+                .setCustomId(`decline_${user.id}_${opponent.id}`)
+                .setLabel('Decline')
+                .setStyle(ButtonStyle.Danger)
+        );
 
-        const collector = interaction.channel.createMessageCollector({ filter, time: 15000, max: 1 });
-
-        collector.on('collect', async () => {
-            const winner = Math.random() < 0.5 ? user : opponent;
-            const loser = winner.id === user.id ? opponent : user;
-
-            removeBalance(loser.id, amount);
-            addBalance(winner.id, amount);
-
-            interaction.followUp(`🪙 Coinflip result!\n🏆 Winner: ${winner}\n💰 Won: ${amount}`);
-        });
-
-        collector.on('end', collected => {
-            if (collected.size === 0) {
-                interaction.followUp('❌ Challenge expired.');
-            }
+        await interaction.reply({
+            content: `🪙 ${opponent}, you’ve been challenged by ${user} for **${amount}**!`,
+            components: [row]
         });
     }
 };
