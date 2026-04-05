@@ -1,10 +1,6 @@
-const { 
-    Client, 
-    GatewayIntentBits, 
-    REST, 
-    Routes, 
-    SlashCommandBuilder 
-} = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 
 // ===== CONFIG =====
 const TOKEN = process.env.TOKEN;
@@ -16,28 +12,43 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
 
-// ===== SLASH COMMANDS =====
-const commands = [
-    new SlashCommandBuilder()
-        .setName('ping')
-        .setDescription('Check if bot is working'),
+// ===== LOAD COMMANDS =====
+client.commands = new Map();
+const commandsArray = [];
 
-    new SlashCommandBuilder()
-        .setName('hello')
-        .setDescription('Say hello')
-];
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-const rest = new REST({ version: '10' }).setToken(TOKEN);
+for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+
+    if (!command.data || !command.execute) {
+        console.log(`❌ Invalid command file: ${file}`);
+        continue;
+    }
+
+    client.commands.set(command.data.name, command);
+
+    commandsArray.push({
+        name: command.data.name,
+        description: command.data.description
+    });
+}
 
 // ===== REGISTER COMMANDS =====
+const rest = new REST({ version: '10' }).setToken(TOKEN);
+
 (async () => {
     try {
-        console.log('🔄 Registering commands...');
+        console.log('🔄 Auto-registering slash commands...');
+
         await rest.put(
             Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-            { body: commands.map(cmd => cmd.toJSON()) }
+            { body: commandsArray }
         );
-        console.log('✅ Commands registered');
+
+        console.log('✅ Commands registered automatically');
     } catch (err) {
         console.error(err);
     }
@@ -48,18 +59,21 @@ client.once('ready', () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-// ===== COMMAND HANDLER =====
+// ===== HANDLE COMMANDS =====
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
-    // /ping
-    if (interaction.commandName === 'ping') {
-        await interaction.reply('🏓 Pong!');
+    const command = client.commands.get(interaction.commandName);
+
+    if (!command) {
+        return interaction.reply({ content: '❌ Command not found', ephemeral: true });
     }
 
-    // /hello
-    if (interaction.commandName === 'hello') {
-        await interaction.reply(`👋 Hello ${interaction.user.username}!`);
+    try {
+        await command.execute(interaction);
+    } catch (err) {
+        console.error(err);
+        await interaction.reply({ content: '❌ Error executing command', ephemeral: true });
     }
 });
 
