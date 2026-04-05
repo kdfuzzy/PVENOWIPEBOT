@@ -1,66 +1,70 @@
-onst { Client, GatewayIntentBits, Collection, REST, Routes } = require("discord.js");
-const fs = require("fs");
+// index.js
+const { Client, GatewayIntentBits, Collection, REST, Routes } = require('discord.js');
+const fs = require('fs');
+require('dotenv').config();
 
-const client = new Client({
-    intents: [GatewayIntentBits.Guilds]
-});
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
+// --------------------
+// Load Commands
+// --------------------
 client.commands = new Collection();
+const commandFiles = fs.readdirSync('./commands').filter(f => f.endsWith('.js'));
 
-// Load commands
-const commandFiles = fs.readdirSync("./commands").filter(file => file.endsWith(".js"));
+const commands = [];
 
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
     client.commands.set(command.data.name, command);
-}
-
-// 🔥 AUTO REGISTER SLASH COMMANDS
-const commands = [];
-for (const file of commandFiles) {
-    const command = require(`./commands/${file}`);
     commands.push(command.data.toJSON());
 }
 
-const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+// --------------------
+// Ready Event
+// --------------------
+client.once('ready', async () => {
+    console.log(`Logged in as ${client.user.tag}`);
 
-client.once("ready", async () => {
-    console.log(`✅ Logged in as ${client.user.tag}`);
+    // Auto-register slash commands for all guilds
+    const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
     try {
-        console.log("🔄 Registering slash commands...");
-
-        await rest.put(
-            Routes.applicationGuildCommands(
-                process.env.CLIENT_ID,
-                process.env.GUILD_ID
-            ),
-            { body: commands }
-        );
-
-        console.log("✅ Slash commands registered!");
+        if (!process.env.GUILD_ID) {
+            console.warn('GUILD_ID not set. Commands will be registered globally (may take up to 1 hour).');
+            await rest.put(
+                Routes.applicationCommands(process.env.CLIENT_ID),
+                { body: commands },
+            );
+        } else {
+            await rest.put(
+                Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+                { body: commands },
+            );
+            console.log('Slash commands synced for guild.');
+        }
     } catch (error) {
-        console.error(error);
+        console.error('Error registering commands:', error);
     }
 });
 
-// Command handler
-client.on("interactionCreate", async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+// --------------------
+// Interaction Handler
+// --------------------
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand()) return;
 
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
 
     try {
-        await command.execute(interaction);
+        await command.execute(interaction, client);
     } catch (error) {
         console.error(error);
-        if (interaction.deferred || interaction.replied) {
-            interaction.editReply({ content: "❌ Error executing command." });
-        } else {
-            interaction.reply({ content: "❌ Error executing command.", ephemeral: true });
-        }
+        await interaction.reply({ content: '❌ There was an error executing this command.', ephemeral: true });
     }
 });
 
+// --------------------
+// Login
+// --------------------
 client.login(process.env.TOKEN);
