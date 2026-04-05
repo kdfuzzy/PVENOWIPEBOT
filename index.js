@@ -18,64 +18,69 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// 🔥 LOAD COMMANDS FROM /commands
+// 📂 LOAD COMMANDS
 const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
+
+if (!fs.existsSync(commandsPath)) {
+    fs.mkdirSync(commandsPath);
+}
+
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
     const command = require(filePath);
 
-    if ('data' in command && 'execute' in command) {
+    if (command.data && command.execute) {
         client.commands.set(command.data.name, command);
         commands.push(command.data.toJSON());
     } else {
-        console.log(`[WARNING] Command at ${filePath} is missing "data" or "execute".`);
+        console.log(`⚠️ Skipped ${file} (missing data/execute)`);
     }
 }
 
-// 🚀 REGISTER SLASH COMMANDS AUTOMATICALLY
+// 🚀 REGISTER SLASH COMMANDS
 client.once('ready', async () => {
     console.log(`✅ Logged in as ${client.user.tag}`);
 
     const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
     try {
-        console.log('🔄 Refreshing slash commands...');
+        console.log('🔄 Registering slash commands...');
 
         await rest.put(
-            Routes.applicationCommands(client.user.id), // GLOBAL COMMANDS
+            Routes.applicationCommands(client.user.id),
             { body: commands }
         );
 
         console.log('✅ Slash commands registered.');
-    } catch (error) {
-        console.error(error);
+    } catch (err) {
+        console.error(err);
     }
 });
 
-// 🎮 INTERACTIONS (COMMANDS + BUTTONS)
+// 🎮 HANDLE INTERACTIONS
 client.on('interactionCreate', async (interaction) => {
 
-    // ✅ SLASH COMMANDS
+    // 🔹 SLASH COMMANDS
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
 
         if (!command) {
-            console.error(`❌ No command matching ${interaction.commandName}`);
+            console.log(`❌ Command not found: ${interaction.commandName}`);
             return;
         }
 
         try {
             await command.execute(interaction);
-        } catch (error) {
-            console.error(error);
+        } catch (err) {
+            console.error(err);
 
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: '❌ Error executing command.', ephemeral: true });
+                interaction.followUp({ content: '❌ Error executing command.', ephemeral: true });
             } else {
-                await interaction.reply({ content: '❌ Error executing command.', ephemeral: true });
+                interaction.reply({ content: '❌ Error executing command.', ephemeral: true });
             }
         }
     }
@@ -111,7 +116,13 @@ client.on('interactionCreate', async (interaction) => {
         if (action === 'accept') {
             const bet = parseInt(amount);
 
-            const { getBalance, removeBalance, addBalance } = require('./utils/economy');
+            const { 
+                getBalance, 
+                removeBalance, 
+                addBalance,
+                addWin,
+                addLoss
+            } = require('./utils/economy');
 
             const userBal = getBalance(userId);
             const oppBal = getBalance(opponentId);
@@ -145,6 +156,10 @@ client.on('interactionCreate', async (interaction) => {
             removeBalance(loserId, bet);
             addBalance(winnerId, bet);
 
+            // 📊 TRACK STATS
+            addWin(winnerId);
+            addLoss(loserId);
+
             const winner = await client.users.fetch(winnerId);
             const challenger = await client.users.fetch(userId);
             const opponent = await client.users.fetch(opponentId);
@@ -163,7 +178,7 @@ client.on('interactionCreate', async (interaction) => {
                 embeds: [resultEmbed]
             });
 
-            // 📜 LOG CHANNEL
+            // 📜 LOGGING
             const logChannel = client.channels.cache.get('1490466866915836095');
 
             if (logChannel) {
