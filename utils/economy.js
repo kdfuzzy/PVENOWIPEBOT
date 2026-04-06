@@ -1,10 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-// 📁 Railway persistent path
+// 📁 Railway persistent storage
 const dataPath = '/data/economy.json';
 
-// 🧠 Ensure file + folder exists
+// Ensure file exists
 function ensureFile() {
     const dir = path.dirname(dataPath);
 
@@ -17,21 +17,21 @@ function ensureFile() {
     }
 }
 
-// 📥 Load data
+// Load data
 function loadData() {
     ensureFile();
     return JSON.parse(fs.readFileSync(dataPath, 'utf8'));
 }
 
-// 💾 Save data
+// Save data
 function saveData(data) {
     fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
 }
 
-// 🧾 Create default user
-function createUser(data, userId) {
-    if (!data[userId]) {
-        data[userId] = {
+// Create user
+function createUser(data, id) {
+    if (!data[id]) {
+        data[id] = {
             balance: 0,
             wins: 0,
             losses: 0
@@ -39,43 +39,42 @@ function createUser(data, userId) {
     }
 }
 
-// 💰 Get balance
-function getBalance(userId) {
-    const data = loadData();
-    return data[userId]?.balance || 0;
+// 💎 Format SOL
+function formatSol(amount) {
+    return `◎ ${amount.toFixed(2)} SOL`;
 }
 
-// ➕ Add money
-function addBalance(userId, amount) {
+// Get balance
+function getBalance(id) {
     const data = loadData();
+    return data[id]?.balance || 0;
+}
 
-    createUser(data, userId);
+// Add balance
+function addBalance(id, amount) {
+    const data = loadData();
+    createUser(data, id);
 
-    data[userId].balance += amount;
+    data[id].balance += amount;
+    saveData(data);
+}
+
+// Remove balance
+function removeBalance(id, amount) {
+    const data = loadData();
+    createUser(data, id);
+
+    data[id].balance -= amount;
+    if (data[id].balance < 0) data[id].balance = 0;
 
     saveData(data);
 }
 
-// ➖ Remove money
-function removeBalance(userId, amount) {
+// Reset
+function resetBalance(id) {
     const data = loadData();
 
-    createUser(data, userId);
-
-    data[userId].balance -= amount;
-
-    if (data[userId].balance < 0) {
-        data[userId].balance = 0;
-    }
-
-    saveData(data);
-}
-
-// ♻️ Reset balance
-function resetBalance(userId) {
-    const data = loadData();
-
-    data[userId] = {
+    data[id] = {
         balance: 0,
         wins: 0,
         losses: 0
@@ -84,41 +83,27 @@ function resetBalance(userId) {
     saveData(data);
 }
 
-// 🏆 Add win
-function addWin(userId) {
+// Win / Loss
+function addWin(id) {
     const data = loadData();
+    createUser(data, id);
 
-    createUser(data, userId);
-
-    data[userId].wins += 1;
-
+    data[id].wins += 1;
     saveData(data);
 }
 
-// 💀 Add loss
-function addLoss(userId) {
+function addLoss(id) {
     const data = loadData();
+    createUser(data, id);
 
-    createUser(data, userId);
-
-    data[userId].losses += 1;
-
+    data[id].losses += 1;
     saveData(data);
 }
 
-// 📊 Get stats
-function getStats(userId) {
+// Stats
+function getStats(id) {
     const data = loadData();
-
-    if (!data[userId]) {
-        return {
-            balance: 0,
-            wins: 0,
-            losses: 0
-        };
-    }
-
-    return data[userId];
+    return data[id] || { balance: 0, wins: 0, losses: 0 };
 }
 
 module.exports = {
@@ -128,5 +113,6 @@ module.exports = {
     resetBalance,
     addWin,
     addLoss,
-    getStats
+    getStats,
+    formatSol
 };
