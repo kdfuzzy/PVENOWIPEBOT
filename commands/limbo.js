@@ -4,15 +4,11 @@ const { getBalance, addBalance, removeBalance, addWin, addLoss, formatSol } = re
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('limbo')
-        .setDescription('Play limbo (high risk, high reward)')
+        .setDescription('Play limbo (live multiplier)')
         .addNumberOption(opt =>
-            opt.setName('amount')
-                .setDescription('Amount of SOL to bet')
-                .setRequired(true))
+            opt.setName('amount').setDescription('Bet amount').setRequired(true))
         .addNumberOption(opt =>
-            opt.setName('multiplier')
-                .setDescription('Target multiplier (e.g. 2 = 2x)')
-                .setRequired(true)),
+            opt.setName('multiplier').setDescription('Target multiplier (e.g. 2)').setRequired(true)),
 
     async execute(interaction) {
 
@@ -37,47 +33,68 @@ module.exports = {
             });
         }
 
-        // 🎬 Animation
-        const loading = new EmbedBuilder()
-            .setTitle('🚀 Limbo...')
-            .setDescription(
-                `Bet: ${formatSol(amount)}\n` +
-                `Target: **${target}x**`
-            )
+        // 🎲 Generate crash point
+        const crashPoint = Math.max(1.01, (1 / Math.random()));
+
+        let current = 1.00;
+        let speed = 0.05;
+
+        const embed = new EmbedBuilder()
+            .setTitle('🚀 Limbo')
             .setColor(0xFFFF00);
 
-        await interaction.reply({ embeds: [loading] });
+        await interaction.reply({ embeds: [embed] });
 
-        await new Promise(r => setTimeout(r, 2000));
+        // 📈 LIVE COUNT UP LOOP
+        while (current < crashPoint) {
 
-        // 🎲 Generate multiplier (provably fair style)
-        const roll = Math.max(1.00, (1 / Math.random())).toFixed(2);
+            current += speed;
+            current = parseFloat(current.toFixed(2));
 
+            embed.setDescription(
+                `Bet: ${formatSol(amount)}\n` +
+                `Target: **${target}x**\n\n` +
+                `📈 Multiplier: **${current}x**`
+            );
+
+            await interaction.editReply({ embeds: [embed] });
+
+            // ⚡ speed increases (like Stake)
+            speed += 0.01;
+
+            await new Promise(r => setTimeout(r, 120));
+
+            // Stop if already passed target (instant win feeling)
+            if (current >= target) break;
+        }
+
+        // 🎯 RESULT
         let resultText;
         let color;
 
-        if (roll >= target) {
+        if (crashPoint >= target) {
+
             const winnings = amount * target;
 
             addBalance(user.id, winnings);
             addWin(user.id);
 
             resultText =
-                `🎉 You WON!\n\n` +
-                `Roll: **${roll}x**\n` +
+                `🎉 WIN!\n\n` +
+                `Final: **${crashPoint.toFixed(2)}x**\n` +
                 `Target: **${target}x**\n\n` +
                 `💰 Won: ${formatSol(winnings)}`;
 
             color = 0x00FF00;
 
         } else {
+
             removeBalance(user.id, amount);
             addLoss(user.id);
 
             resultText =
-                `💀 You LOST!\n\n` +
-                `Roll: **${roll}x**\n` +
-                `Target: **${target}x**\n\n` +
+                `💀 LOST!\n\n` +
+                `Crashed at: **${crashPoint.toFixed(2)}x**\n\n` +
                 `💸 Lost: ${formatSol(amount)}`;
 
             color = 0xFF0000;
