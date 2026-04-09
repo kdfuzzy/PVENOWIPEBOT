@@ -5,11 +5,9 @@ const { isLucky } = require('../utils/fuzzy');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('limbo')
-        .setDescription('Fast limbo (stake style)')
-        .addNumberOption(opt =>
-            opt.setName('amount').setRequired(true))
-        .addNumberOption(opt =>
-            opt.setName('multiplier').setRequired(true)),
+        .setDescription('Play limbo')
+        .addNumberOption(opt => opt.setName('amount').setRequired(true))
+        .addNumberOption(opt => opt.setName('multiplier').setRequired(true)),
 
     async execute(interaction) {
 
@@ -29,24 +27,27 @@ module.exports = {
             });
         }
 
+        // ✅ CRITICAL: respond instantly
         await interaction.deferReply();
 
         let crashPoint = Math.max(1.01, (1 / Math.random()));
 
-        // 🧠 fuzzy
+        // 🧠 FUZZY
         if (isLucky(user.id)) {
             crashPoint = target + 1;
         }
 
         let current = 1.00;
-        let growth = 1.06; // 🔥 exponential speed
+        let growth = 1.07;
 
         const embed = new EmbedBuilder()
             .setTitle('🚀 Limbo')
             .setColor(0xFFFF00);
 
-        // 🚀 FAST LOOP
-        while (current < crashPoint && current < target + 10) {
+        // ⚠️ LIMIT updates (THIS FIXES EVERYTHING)
+        const maxSteps = 25;
+
+        for (let i = 0; i < maxSteps; i++) {
 
             current *= growth;
             current = parseFloat(current.toFixed(2));
@@ -59,12 +60,11 @@ module.exports = {
 
             await interaction.editReply({ embeds: [embed] });
 
-            // ⚡ speed ramps up naturally
-            growth += 0.002;
+            growth += 0.01;
 
-            await new Promise(r => setTimeout(r, 80));
+            await new Promise(r => setTimeout(r, 100));
 
-            if (current >= target) break;
+            if (current >= crashPoint || current >= target) break;
         }
 
         // 🎯 RESULT
@@ -99,10 +99,12 @@ module.exports = {
         }
 
         await interaction.editReply({
-            embeds: [new EmbedBuilder()
-                .setTitle('🚀 Limbo Result')
-                .setDescription(resultText)
-                .setColor(color)]
+            embeds: [
+                new EmbedBuilder()
+                    .setTitle('🚀 Limbo Result')
+                    .setDescription(resultText)
+                    .setColor(color)
+            ]
         });
     }
 };
