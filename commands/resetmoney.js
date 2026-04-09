@@ -1,19 +1,27 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { resetBalance } = require('../utils/economy');
+const { setBalance } = require('../utils/economy');
+
+const OWNER_ID = '794606718972723230';
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('resetmoney')
-        .setDescription('Reset a user\'s money')
+        .setDescription('Reset a user balance')
         .addUserOption(opt =>
-            opt.setName('user').setDescription('User').setRequired(true)),
+            opt.setName('user')
+                .setDescription('User')
+                .setRequired(true)),
 
     async execute(interaction) {
 
+        if (interaction.user.id !== OWNER_ID) {
+            return interaction.reply({ content: '❌ You cannot use this.', ephemeral: true });
+        }
+
         const user = interaction.options.getUser('user');
 
-        resetBalance(user.id);
+        setBalance(user.id, 0);
 
-        interaction.reply(`♻️ Reset ${user.username}'s balance.`);
+        interaction.reply(`🔄 Reset ${user.username}'s balance.`);
     }
 };
